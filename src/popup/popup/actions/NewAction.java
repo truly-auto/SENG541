@@ -130,29 +130,21 @@ public class NewAction implements IObjectActionDelegate {
 		fd.setText("Select jar files to remove");
 		fd.setFilterExtensions(new String[]{"*.jar"});
 		String s = fd.open();
-		System.out.println(s);
-	/*	
-		MessageDialog.openInformation(
-				shell,
-				"Migrate",
-				"Browsing window shown here...user browses for new jar files to be added");
 		
-		//String[] jarpath = null;//This path is given by the user, it should be an array,...commented for now.
-		//-------------------
-		String jarpath="C:/Program Files/Java/jre1.8.0_20/lib/management-agent.jar";
+
 		boolean isAlreadyadded = false;
 		IClasspathEntry newjar = null;
 		for(IClasspathEntry en:rawClasspath){
-			isAlreadyadded = en.getPath().toString().equals(jarpath);
+			isAlreadyadded = en.getPath().toString().equals(s);
 			if(isAlreadyadded)
 				break;	
 		}
 		
 		if(!isAlreadyadded){
-				newjar = JavaCore.newLibraryEntry(new Path(jarpath), null, null);
+				newjar = JavaCore.newLibraryEntry(new Path(s), null, null);
 				list.add(newjar);
 		}
-		*/
+		
 		IClasspathEntry[] newclasspath = (IClasspathEntry[])list.toArray(new IClasspathEntry[0]);
 		try {
 			javaproj.setRawClasspath( newclasspath, null);
