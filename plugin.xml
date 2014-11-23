@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            objectClass="org.eclipse.jdt.core.IJavaProject"
+            id="popup.contribution1">
+         <menu
+               label="Migrate Jar"
+               path="additions"
+               id="popup.menu1">
+            <separator
+                  name="group1">
+            </separator>
+         </menu>
+         <action
+               label="Migrate"
+               class="popup.popup.actions.NewAction"
+               menubarPath="popup.menu1/group1"
+               enablesFor="1"
+               id="popup.newAction">
+         </action>
+      </objectContribution>
+   </extension>
+
+</plugin>
