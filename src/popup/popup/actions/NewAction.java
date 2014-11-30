@@ -27,6 +27,7 @@ import org.eclipse.ui.IWorkbenchPart;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.dialogs.ElementListSelectionDialog;
+import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IResource;
@@ -40,13 +41,15 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.ui.dialogs.AbstractElementListSelectionDialog;
 
+import popup.parser.Parser;
+
 
 
 
 public class NewAction implements IObjectActionDelegate {
 
 	private Shell shell;
-	
+	public static IProject selected = null;
 	/**
 	 * Constructor for Action1.
 	 */
@@ -54,6 +57,10 @@ public class NewAction implements IObjectActionDelegate {
 		super();
 	}
 	
+	public static IProject getproject(){
+		
+		return selected;
+	}
 	/**
 	 * @see IActionDelegate#selectionChanged(IAction, ISelection)
 	 */
@@ -81,9 +88,9 @@ public class NewAction implements IObjectActionDelegate {
 		
 		
 		
-		IProject selected = selected();
-		//view libraries in it
-		IJavaProject javaproj = JavaCore.create(selected);
+		selected = selected();
+		//Comment code below to test parser without changing jar
+/*		IJavaProject javaproj = JavaCore.create(selected);
 		IClasspathEntry[] rawClasspath = null;
 		try {
 			rawClasspath= javaproj.getRawClasspath();
@@ -106,7 +113,6 @@ public class NewAction implements IObjectActionDelegate {
 		}
 		
 		
-
 		ElementListSelectionDialog d = new ElementListSelectionDialog(shell, new LabelProvider());
 		d.setElements(jar);
 		d.setMultipleSelection(true);
@@ -130,21 +136,31 @@ public class NewAction implements IObjectActionDelegate {
 		fd.setText("Select jar files to remove");
 		fd.setFilterExtensions(new String[]{"*.jar"});
 		String s = fd.open();
+		System.out.println(s);
+	
+		MessageDialog.openInformation(
+				shell,
+				"Migrate",
+				"Browsing window shown here...user browses for new jar files to be added");
 		
-
+		//String[] jarpath = null;//This path is given by the user, it should be an array,...commented for now.
+		//-------------------
+		String jarpath="C:/Program Files/Java/jre1.8.0_20/lib/management-agent.jar";
 		boolean isAlreadyadded = false;
 		IClasspathEntry newjar = null;
 		for(IClasspathEntry en:rawClasspath){
-			isAlreadyadded = en.getPath().toString().equals(s);
+			isAlreadyadded = en.getPath().toString().equals(jarpath);
 			if(isAlreadyadded)
 				break;	
 		}
 		
 		if(!isAlreadyadded){
-				newjar = JavaCore.newLibraryEntry(new Path(s), null, null);
+				newjar = JavaCore.newLibraryEntry(new Path(jarpath), null, null);
 				list.add(newjar);
 		}
 		
+		
+
 		IClasspathEntry[] newclasspath = (IClasspathEntry[])list.toArray(new IClasspathEntry[0]);
 		try {
 			javaproj.setRawClasspath( newclasspath, null);
@@ -152,8 +168,15 @@ public class NewAction implements IObjectActionDelegate {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-	
-		
+*/	
+		//Comment till here to test parser without executing jar migrate 
+		Parser par = new Parser();//not sure how to execute the parser class
+		try {
+			par.execute(null);
+		} catch (ExecutionException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		//option to delete and add more libraries
 		
 		//C:/Users/Philip/Downloads
