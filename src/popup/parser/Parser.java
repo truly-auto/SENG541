@@ -50,7 +50,7 @@ public class Parser extends AbstractHandler {
 	
 	
 	private static CompilationUnit parse(ICompilationUnit unit){
-		ASTParser parser = ASTParser.newParser(AST.JLS8);
+		ASTParser parser = ASTParser.newParser(AST.JLS4);
 		parser.setKind(ASTParser.K_COMPILATION_UNIT);
 		parser.setSource(unit);
 		parser.setResolveBindings(true);
