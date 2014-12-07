@@ -26,7 +26,7 @@ public class Parser extends AbstractHandler {
 							
 							CompilationUnit parse = parse(u);
 							MVisitor v =  new MVisitor();
-							parse.accept(v);
+							parse.accept(v);		
 							
 							for(MethodDeclaration method : v.getMethods()){
 								System.out.println("Method name: " + method.getName() + "\tReturn type: " + method.getReturnType2());

@@ -90,7 +90,7 @@ public class NewAction implements IObjectActionDelegate {
 		
 		selected = selected();
 		//Comment code below to test parser without changing jar
-/*		IJavaProject javaproj = JavaCore.create(selected);
+		IJavaProject javaproj = JavaCore.create(selected);
 		IClasspathEntry[] rawClasspath = null;
 		try {
 			rawClasspath= javaproj.getRawClasspath();
@@ -135,8 +135,8 @@ public class NewAction implements IObjectActionDelegate {
 		FileDialog fd = new FileDialog(shell);
 		fd.setText("Select jar files to remove");
 		fd.setFilterExtensions(new String[]{"*.jar"});
-		String s = fd.open();
-		System.out.println(s);
+		String jarpath = fd.open();
+	
 	
 		MessageDialog.openInformation(
 				shell,
@@ -145,7 +145,6 @@ public class NewAction implements IObjectActionDelegate {
 		
 		//String[] jarpath = null;//This path is given by the user, it should be an array,...commented for now.
 		//-------------------
-		String jarpath="C:/Program Files/Java/jre1.8.0_20/lib/management-agent.jar";
 		boolean isAlreadyadded = false;
 		IClasspathEntry newjar = null;
 		for(IClasspathEntry en:rawClasspath){
@@ -168,7 +167,7 @@ public class NewAction implements IObjectActionDelegate {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-*/	
+	
 		//Comment till here to test parser without executing jar migrate 
 		Parser par = new Parser();//not sure how to execute the parser class
 		try {
