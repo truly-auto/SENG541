@@ -3,13 +3,16 @@ package popup.popup.actions;
 
 import java.awt.List;
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedList;
 
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
@@ -50,6 +53,11 @@ public class NewAction implements IObjectActionDelegate {
 
 	private Shell shell;
 	public static IProject selected = null;
+	public String oldjarpath;
+	public String newjarpath;
+	private IProject newproject;
+	
+	private IProject[] AllProjects;
 	/**
 	 * Constructor for Action1.
 	 */
@@ -89,6 +97,12 @@ public class NewAction implements IObjectActionDelegate {
 		
 		
 		selected = selected();
+		
+		IWorkspace workspace = ResourcesPlugin.getWorkspace();
+	    IWorkspaceRoot root = workspace.getRoot();
+	    
+	    AllProjects = root.getProjects();
+		
 		//Comment code below to test parser without changing jar
 		IJavaProject javaproj = JavaCore.create(selected);
 		IClasspathEntry[] rawClasspath = null;
@@ -116,9 +130,10 @@ public class NewAction implements IObjectActionDelegate {
 		ElementListSelectionDialog d = new ElementListSelectionDialog(shell, new LabelProvider());
 		d.setElements(jar);
 		d.setMultipleSelection(true);
-		d.setTitle("Select Jar files to remove");
+		d.setTitle("Select one Jar file to remove");
 		d.open();
 		Object[] result = d.getResult();
+		oldjarpath = (String)result[0];
 		
 		boolean flag = false;
 		
@@ -135,7 +150,7 @@ public class NewAction implements IObjectActionDelegate {
 		FileDialog fd = new FileDialog(shell);
 		fd.setText("Select jar files to remove");
 		fd.setFilterExtensions(new String[]{"*.jar"});
-		String jarpath = fd.open();
+		newjarpath = fd.open();
 	
 	
 		MessageDialog.openInformation(
@@ -148,26 +163,32 @@ public class NewAction implements IObjectActionDelegate {
 		boolean isAlreadyadded = false;
 		IClasspathEntry newjar = null;
 		for(IClasspathEntry en:rawClasspath){
-			isAlreadyadded = en.getPath().toString().equals(jarpath);
+			isAlreadyadded = en.getPath().toString().equals(newjarpath);
 			if(isAlreadyadded)
 				break;	
 		}
 		
 		if(!isAlreadyadded){
-				newjar = JavaCore.newLibraryEntry(new Path(jarpath), null, null);
+				newjar = JavaCore.newLibraryEntry(new Path(newjarpath), null, null);
 				list.add(newjar);
 		}
 		
 		
 
 		IClasspathEntry[] newclasspath = (IClasspathEntry[])list.toArray(new IClasspathEntry[0]);
+		
 		try {
-			javaproj.setRawClasspath( newclasspath, null);
-		} catch (JavaModelException e) {
+			CloneProject(selected.getLocation().toOSString(),newclasspath);
+		} catch (CoreException e1) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
-	
+		
+		
+		
 		//Comment till here to test parser without executing jar migrate 
 		Parser par = new Parser();//not sure how to execute the parser class
 		try {
@@ -189,7 +210,48 @@ public class NewAction implements IObjectActionDelegate {
 	}
 	
 	
-	
+	//newprojects the project with the specified path selected by the user. 
+		public void CloneProject(String projectPath,IClasspathEntry[] entries) throws CoreException, IOException {		
+			File source = new File(projectPath);
+			File destination = new File(projectPath + "[duplicate]");
+			
+			if ( !source.exists() ) {
+				throw new FileNotFoundException("Source project not found");
+			}
+			
+			FileUtils.copyDirectory(source, destination); 
+			System.out.println("here - checkpoint 1");
+			IProjectDescription description;
+			description = ResourcesPlugin.getWorkspace().loadProjectDescription(new Path(projectPath + "[duplicate]/.project"));
+			String name = description.getName();
+
+			String projectFiles = FileUtils.readFileToString(new File(projectPath + "/.project"));
+			projectFiles = projectFiles.replaceAll(name, name+"[duplicate]");
+			File temp = new File(projectPath + "[duplicate]/.project");
+			FileUtils.writeStringToFile(temp, projectFiles);
+			
+			description = ResourcesPlugin.getWorkspace().loadProjectDescription(new Path(projectPath + "[duplicate]/.project"));
+			newproject = ResourcesPlugin.getWorkspace().getRoot().getProject(description.getName());
+			
+			Boolean alreadyCopied = false;
+			for (IProject entry : AllProjects) {
+				if (newproject == entry) {
+					alreadyCopied = true;
+				}
+			}
+			
+			if(alreadyCopied == false) {
+				newproject.create(description, null);
+				newproject.open(null);
+			}
+			
+			System.out.println("here - checkpoint 2");
+			IJavaProject javaProject = JavaCore.create(newproject);
+			javaProject.setRawClasspath(entries, null);
+			
+			System.out.println("here - checkpoint 3");
+		
+		}
 	
 	static private void importProject(IPath p)throws CoreException{
 	
