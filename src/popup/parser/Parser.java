@@ -1,9 +1,12 @@
 package popup.parser;
 
+import javax.swing.JTextArea;
+
 import org.eclipse.core.commands.*;
 import org.eclipse.core.resources.*;
 import org.eclipse.core.runtime.*;
 import org.eclipse.jdt.core.*;
+import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.*;
 
 import popup.popup.actions.NewAction;
@@ -11,40 +14,49 @@ import popup.popup.actions.NewAction;
 
 public class Parser extends AbstractHandler {
 
-	@Override
-	public Object execute(ExecutionEvent event) throws ExecutionException {
-		
-		IProject proj = NewAction.getproject();
-		try{
-			if(proj.isNatureEnabled("org.eclipse.jdt.core.javanature")){
-				
-				IPackageFragment[] packages = JavaCore.create(proj).getPackageFragments();
-				for(IPackageFragment p:packages){
-					if(p.getKind() == IPackageFragmentRoot.K_SOURCE){
-						
-						for(ICompilationUnit u: p.getCompilationUnits()){
-							
-							CompilationUnit parse = parse(u);
-							MVisitor v =  new MVisitor();
-							parse.accept(v);		
-							
-							for(MethodDeclaration method : v.getMethods()){
-								System.out.println("Method name: " + method.getName() + "\tReturn type: " + method.getReturnType2());
-							}
-						}
-					}
-					
-				}
+	private JTextArea errors;
 
-				
+	
+	public Parser(JTextArea e){
+		errors = e;
+	}
+	
+	
+	public void analyseMethods(IProject p)throws JavaModelException{
+		
+		IPackageFragment[] packages = JavaCore.create(p).getPackageFragments();
+		for(IPackageFragment pf: packages){
+			if(pf.getKind()==IPackageFragmentRoot.K_SOURCE){
+				createAST(pf);
 			}
-			
-		}catch(CoreException e){
-			e.printStackTrace();
 		}
+	}
+	
+	
+	public void createAST(IPackageFragment mypackage) throws JavaModelException {
 		
-		
-		return null;
+		for(ICompilationUnit u: mypackage.getCompilationUnits()){
+							
+				CompilationUnit parse = parse(u);
+				
+				IProblem[] projectErrors = parse.getProblems();
+				//NewAction.problems = new String [projectErrors.length];
+					
+				int count=0;
+				
+				for(IProblem e: projectErrors){
+					NewAction.problems.add(e.toString());
+					errors.append(NewAction.problems.get(count));
+					count++;
+				}
+				
+				MVisitor v =  new MVisitor();
+				parse.accept(v);		
+							
+			/*	for(MethodDeclaration method : v.getMethods()){
+				System.out.println("Method name: " + method.getName() + "\tReturn type: " + method.getReturnType2());
+				}*/
+		}
 	}
 	
 	
@@ -55,6 +67,12 @@ public class Parser extends AbstractHandler {
 		parser.setSource(unit);
 		parser.setResolveBindings(true);
 		return (CompilationUnit) parser.createAST(null);
+	}
+
+	@Override
+	public Object execute(ExecutionEvent event) throws ExecutionException {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

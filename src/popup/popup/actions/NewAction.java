@@ -1,6 +1,7 @@
 package popup.popup.actions;
 
 
+import java.awt.Dimension;
 import java.awt.List;
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -12,9 +13,26 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedList;
 
+import javax.swing.JFrame;
+import javax.swing.JList;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
+import javax.swing.ListSelectionModel;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+
 import org.apache.commons.io.FileUtils;
+import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IField;
+import org.eclipse.jdt.core.IInitializer;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.launching.JavaRuntime;
@@ -46,23 +64,42 @@ import org.eclipse.ui.dialogs.AbstractElementListSelectionDialog;
 
 import popup.parser.Parser;
 
+//Implementation on the basis that JAR migration is done for one library at a time.
 
 
-
-public class NewAction implements IObjectActionDelegate {
+public class NewAction implements IObjectActionDelegate, ListSelectionListener {
 
 	private Shell shell;
 	public static IProject selected = null;
-	public String oldjarpath;
-	public String newjarpath;
+	public static String oldjarpath;
+	public static String newjarpath;
 	private IProject newproject;
 	
 	private IProject[] AllProjects;
+	public static JTextArea errors;
+	
+	
+	static String [][] paraMethodOld;
+	static String [][] paraMethodNew;
+	IMethod[] jarmethodOld;
+	IMethod[] jarmethodsNew;
+	static String [] arrayNewJar;//number of methods in the new jar
+	static String [] arrayOldJar;//number of methods in the old jar
+	IMethod[] oldjFunctions;
+	IMethod [] newjFunctions;
+	String [] errorlist;
+	public static ArrayList<String> problems;
+	
+	private boolean jar = false;
+	
+	Parser ast;
+	
 	/**
 	 * Constructor for Action1.
 	 */
 	public NewAction() {
 		super();
+		
 	}
 	
 	public static IProject getproject(){
@@ -98,12 +135,12 @@ public class NewAction implements IObjectActionDelegate {
 		
 		selected = selected();
 		
+		
 		IWorkspace workspace = ResourcesPlugin.getWorkspace();
 	    IWorkspaceRoot root = workspace.getRoot();
 	    
 	    AllProjects = root.getProjects();
-		
-		//Comment code below to test parser without changing jar
+	
 		IJavaProject javaproj = JavaCore.create(selected);
 		IClasspathEntry[] rawClasspath = null;
 		try {
@@ -117,7 +154,6 @@ public class NewAction implements IObjectActionDelegate {
 		
 		LinkedList list = new LinkedList(java.util.Arrays.asList(rawClasspath));
 	
-		//System.out.println(rawClasspath.length);
 		String[] jar = new String[rawClasspath.length];
 		
 		for(int i=0;i<jar.length;i++){
@@ -148,7 +184,7 @@ public class NewAction implements IObjectActionDelegate {
 		
 	
 		FileDialog fd = new FileDialog(shell);
-		fd.setText("Select jar files to remove");
+		fd.setText("Select jar files to add");
 		fd.setFilterExtensions(new String[]{"*.jar"});
 		newjarpath = fd.open();
 	
@@ -158,7 +194,6 @@ public class NewAction implements IObjectActionDelegate {
 				"Migrate",
 				"Browsing window shown here...user browses for new jar files to be added");
 		
-		//String[] jarpath = null;//This path is given by the user, it should be an array,...commented for now.
 		//-------------------
 		boolean isAlreadyadded = false;
 		IClasspathEntry newjar = null;
@@ -188,29 +223,56 @@ public class NewAction implements IObjectActionDelegate {
 		}
 		
 		
-		
-		//Comment till here to test parser without executing jar migrate 
-		Parser par = new Parser();//not sure how to execute the parser class
+	/*	Parser par = new Parser();//Executing the parser for now
 		try {
 			par.execute(null);
 		} catch (ExecutionException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-		//option to delete and add more libraries
+		}*/
 		
-		//C:/Users/Philip/Downloads
+		//Compute recommendations here
 		
-		MessageDialog.openInformation(
+		//create a split text pane to display the errors and recommendations
+		
+				String [] text = {"Errors", "Recomm. for method parameters", "Recomm. for return types","click me first"};
+				JList textList = new JList(text);
+				textList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+				textList.setSelectedIndex(0);
+				textList.addListSelectionListener((ListSelectionListener) this);
+				
+				
+				JScrollPane listScrollPane = new JScrollPane(textList);
+		         
+				System.out.println("\n\n check");
+				
+				errors = new JTextArea();
+				JScrollPane scrollPane = new JScrollPane(errors);
+				JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,listScrollPane, scrollPane);
+				splitPane.setOneTouchExpandable(true);
+				splitPane.setDividerLocation(200);
+
+				//Provide minimum sizes for the two components in the split pane.
+				Dimension minimumSize = new Dimension(500, 350);
+				listScrollPane.setMinimumSize(minimumSize);
+				scrollPane.setMinimumSize(minimumSize);
+
+				//Provide a preferred size for the split pane.
+				splitPane.setPreferredSize(new Dimension(600, 400));
+				JFrame frame = new JFrame();
+				frame.add(splitPane);
+				frame.setSize(600, 400);
+				frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		        frame.setVisible(true);
+		
+		
+	/*	MessageDialog.openInformation(
 			shell,
 			"Migrate",
 			"Migration Completed");
-		
-		
+*/
 	}
 	
-	
-	//newprojects the project with the specified path selected by the user. 
 		public void CloneProject(String projectPath,IClasspathEntry[] entries) throws CoreException, IOException {		
 			File source = new File(projectPath);
 			File destination = new File(projectPath + "[duplicate]");
@@ -220,7 +282,6 @@ public class NewAction implements IObjectActionDelegate {
 			}
 			
 			FileUtils.copyDirectory(source, destination); 
-			System.out.println("here - checkpoint 1");
 			IProjectDescription description;
 			description = ResourcesPlugin.getWorkspace().loadProjectDescription(new Path(projectPath + "[duplicate]/.project"));
 			String name = description.getName();
@@ -245,14 +306,115 @@ public class NewAction implements IObjectActionDelegate {
 				newproject.open(null);
 			}
 			
-			System.out.println("here - checkpoint 2");
 			IJavaProject javaProject = JavaCore.create(newproject);
 			javaProject.setRawClasspath(entries, null);
 			
-			System.out.println("here - checkpoint 3");
-		
 		}
 	
+		public void getInfoAboutJars(IProject project, String JARFILEPATH, String[] rt_new, String[] rt_old){
+			int methdInt=0;
+			
+			//IWorkspace workspace = ResourcesPlugin.getWorkspace();
+			IPath jarFilepath;
+			jarFilepath= new Path(JARFILEPATH);
+			String jarFilePathToString = JARFILEPATH.toString();
+			IPackageFragment[] packages;
+
+			 //Process each package 
+			try{
+			for ( IPackageFragment mypackage : JavaCore.create(project).getPackageFragments()) {
+				// K_Binary would include also jars
+				if ( mypackage.getKind() == IPackageFragmentRoot.K_BINARY ) {
+					
+					for ( IClassFile classFile : mypackage.getClassFiles() ) {
+						if( classFile.getPath().toString().equalsIgnoreCase(jarFilePathToString) ) {
+							if(jar){
+								errors.append("Path of selected Jar is:\n "+ jarFilePathToString +"\n");
+							}
+							else{
+								errors.append("Path of the Jar you would like to remove is\n: "+ jarFilePathToString);
+							}
+								//if (mypackage.getKind() == IPackageFragmentRoot.K_SOURCE)
+				           // {
+				             //   System.out.println("Source Name " + mypackage.getElementName());
+				               // System.out.println("Number of Classes: " + mypackage.getClassFiles().length);
+				          //  }
+								errors.append("Path of the Jar you would like to remove is\n: "+ jarFilePathToString);
+							//if (javaElement instanceof IType) {
+							//	System.out.println("--------IType "
+								//		+ javaElement.getElementName());
+							for ( IJavaElement javaElement : classFile.getChildren() ) {
+								if (javaElement instanceof IType) {
+									errors.append("Jar class is: "+javaElement.getElementName());
+
+									// IInitializer
+									IInitializer[] inits = ((IType) javaElement).getInitializers();
+									for (IInitializer init : inits) {
+										errors.append("Initialize: "+init.getElementName());
+									}
+	 
+									// IField
+									IField[] fields = ((IType) javaElement).getFields();
+									for (IField field : fields) {
+										errors.append("Fields: "+ field.getElementName());
+									}
+	 
+									// IMethod
+									IMethod[] methods = ((IType) javaElement).getMethods();
+									
+									if (JARFILEPATH != oldjarpath){
+										jarmethodsNew = methods;
+									}
+										
+									else{
+										jarmethodOld = methods;
+									}
+									
+									for (IMethod method : methods) {
+									
+						            		/*
+						            		arrayOldJar= new String[numOfMethods(selectProject, jarold)];
+											String[][] paraMethodOld= new String[numOfMethods(selectProject, jarold)][];
+											String []rt_old= new String[numOfMethods(selectProject, jarold)];
+											
+											
+										arrayNewJar= new String[numOfMethods(clone, jarnew)];
+						 				String [][] paraMethodNew= new String[numOfMethods(clone, jarnew)][];
+										String [] rt_new= new String[numOfMethods(clone, jarnew)];
+						jar=!jar;
+											*/
+										if(jar){
+											errors.append("\nThe following returns the name of the new jar method names along with their return types:\n");
+											errors.append("\nName: " + (arrayNewJar[methdInt]= method.getElementName()));
+											errors.append("\nReturn Type: " + (rt_new[methdInt]= method.getReturnType()));
+											paraMethodNew[methdInt]= method.getParameterTypes();
+											for(int i=0; i<paraMethodNew.length;i++);
+				
+										}	
+							
+										else{
+											
+											errors.append("\nThe following returns the name of the removed jar method names along with their return types:\n");
+											errors.append("Name: " + (arrayOldJar[methdInt]= method.getElementName()));				
+											errors.append("\nReturn Type: " + 	(rt_old[methdInt]= method.getReturnType()));
+											paraMethodOld[methdInt]= method.getParameterTypes();
+											for(int i=0; i<paraMethodOld.length;i++);
+												
+										methdInt++;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			}
+		 }//end of try
+	catch (JavaModelException e) {
+	 e.printStackTrace();	}
+		}//end of method	
+		
+		
 	static private void importProject(IPath p)throws CoreException{
 	
 		IProjectDescription des = ResourcesPlugin.getWorkspace().loadProjectDescription(p) ;
@@ -260,6 +422,12 @@ public class NewAction implements IObjectActionDelegate {
 		project.create(des,null);
 		project.open(null);
 	}
+	
+	public void gettingMethodCalls (IProject iproject, String jarpath) throws JavaModelException{
+		IPath path = new Path(jarpath);
+		IPackageFragment[] packages = JavaCore.create(iproject).getPackageFragments();
+	}
+	
 	
 	private IProject selected(){
 		IProject project = null;
@@ -276,6 +444,128 @@ public class NewAction implements IObjectActionDelegate {
 		}
 		return project;
 	}
+	
+	public int numOfMethods(IProject iproject, String jarFilepath) {
+		int methodsnum=0;	
+		IPath JarFilepath;
+		JarFilepath =new Path(jarFilepath);
+		String jarFilePathToString = jarFilepath.toString();
+			
+		try{
+			
+		for ( IPackageFragment mypackage : JavaCore.create(iproject).getPackageFragments() ) {
+			if ( mypackage.getKind() == IPackageFragmentRoot.K_BINARY ) {
+				for ( IClassFile classFile : mypackage.getClassFiles() ) {
+					if( classFile.getPath().toString().equalsIgnoreCase(jarFilePathToString) ) {
+						for ( IJavaElement javaElement : classFile.getChildren() ) {
+							if (javaElement instanceof IType) {
+					
+								IMethod[] methods = ((IType) javaElement).getMethods();
+								for (IMethod method : methods) {
+									methodsnum++;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	catch (JavaModelException e) {
+	   e.printStackTrace();	}
+		
+		return methodsnum;
+		
+	}	
+	
+	@Override
+	public void valueChanged(ListSelectionEvent e) {
+		int methdInt;
+		
+		problems = new ArrayList<String>();
+		
+		// TODO Auto-generated method stub
+		if (e.getValueIsAdjusting())
+            return;
+ 
+        JList theList = (JList)e.getSource();
+        
+        if (theList.isSelectionEmpty()) {
+            errors.setText("Nothing selected.");
+        } else {
+            int index = theList.getSelectedIndex();
+            
+            if(index == 0){
+            	errors.setText("The following list the errors in the project: "+"\n\n");
+            	 //String [][] paraMethodOld;
+				 //String [][] paraMethodNew;
+				// String [] rt_old;
+				// String [] rt_new;
+            	try {
+            		
+     
+					arrayOldJar= new String[numOfMethods(selected, oldjarpath)];
+					String[][] paraMethodOld= new String[numOfMethods(selected, oldjarpath)][];
+					String []rt_old= new String[numOfMethods(selected, oldjarpath)];
+					String [][] paraMethodNew= new String[numOfMethods(newproject, newjarpath)][];
+					String [] rt_new= new String[numOfMethods(newproject, newjarpath)];
+					methdInt=0;
+					getInfoAboutJars(selected, oldjarpath,rt_new,rt_old);
+					System.out.println("old jar has this many methods: "+methdInt);
+					arrayNewJar= new String[numOfMethods(newproject, newjarpath)];
+					
+					jar=!jar;
+					methdInt=0;
+					getInfoAboutJars(newproject, newjarpath,rt_new,rt_old); 
+					System.out.println("the current jar has this many methods: "+methdInt);
+					
+				
+					ast = new Parser(errors);
+            		ast.analyseMethods(newproject);
+            		
+            		
+            		System.out.print(problems.size());
+            		errors.append("\n______________________________________________________\n");
+            		errors.append("Overall Information:\n");
+            		errors.append("The total number of errors in you project are: "+ problems.size());
+            		for(int i=0; i< problems.size(); i++)
+            			errors.append("\nThe type of error is: "+problems.get(i).toString());
+            		errors.append("\nPlease choose one of the recommendations tab to see how to fix your error!");
+//            	
+            	} catch (JavaModelException e1) {
+            		// TODO Auto-generated catch block
+            		e1.printStackTrace();
+            	}
+            }
+            else if(index ==1){
+            	errors.setText("Displays all the method parameters: \n");
+            	try {
+					APIRecommend r = new APIRecommend(jarmethodOld, jarmethodsNew, problems);
+					ArrayList<String> get = r.getMethodParameters();
+					String parameters = r.getParameters();
+					errors.append(parameters);
+					
+				} catch (JavaModelException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+            }else if(index ==2){
+            	errors.setText("Displays all the return types: \n");
+            	try {
+            		APIRecommend r = new APIRecommend(jarmethodOld, jarmethodsNew, problems);
+            		ArrayList<String> get = r.getMethodParameters();//Exception here
+					String returnType = r.getReturnType();
+					errors.append(returnType);
+				} catch (JavaModelException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+            }else if(index ==3){
+            	errors.setText("can't believe this is happening");
+            }
+        }
+	}
+	
 	   
 	          
 
